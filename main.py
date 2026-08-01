@@ -37,7 +37,7 @@ VIDEO_SOURCE = (os.getenv("VIDEO_SOURCE", "composite") or "composite").strip().l
 FIRST_DIR = os.getenv("FIRST_VIDEO_DIR", r"E:\Hung\drop-shipping\first-video")
 SECOND_DIR = os.getenv("SECOND_VIDEO_DIR", r"E:\Hung\drop-shipping\second-video")
 BUILD_MUSIC_DIR = os.getenv("BUILD_MUSIC_DIR", r"E:\Hung\drop-shipping\music")
-SECOND_COUNT = int(os.getenv("SECOND_COUNT", "2"))
+SECOND_COUNT = int(os.getenv("SECOND_COUNT", "3"))
 
 # Mỗi video tạo ra được lưu lại đây để tiện quan sát (không tự xoá).
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", r"E:\Hung\drop-shipping\output")

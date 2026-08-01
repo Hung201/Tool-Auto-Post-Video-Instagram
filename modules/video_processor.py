@@ -10,7 +10,9 @@ Các biến đổi được áp dụng ngẫu nhiên nhẹ mỗi lần chạy:
 import glob
 import os
 import random
+import re
 
+from . import _compat  # noqa: F401  (vá Pillow>=10 cho moviepy trước khi resize)
 from PIL import Image, ImageDraw, ImageFont
 from moviepy.editor import (
     AudioFileClip,
@@ -59,36 +61,64 @@ def _wrap_text(draw, text, font, max_width):
     return lines
 
 
+# Bỏ emoji / ký tự lạ mà font thường không vẽ được (tránh hiện ô vuông □).
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F000-\U0001FAFF"   # emoji, pictographs
+    "\U00002600-\U000027BF"   # misc symbols, dingbats
+    "\U0001F1E6-\U0001F1FF"   # cờ
+    "\U00002190-\U000021FF"   # mũi tên
+    "\U00002B00-\U00002BFF"   # symbols & arrows
+    "\U0000FE00-\U0000FE0F"   # variation selectors
+    "\U0000200D"              # zero-width joiner
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _strip_emoji(text: str) -> str:
+    text = _EMOJI_RE.sub("", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def _make_text_image(text: str, video_w: int, video_h: int) -> np.ndarray:
-    """Tạo ảnh RGBA trong suốt chứa text (có viền đen cho dễ đọc)."""
+    """Tạo ảnh RGBA chứa text kiểu 'trắng đậm + bóng đổ mềm' (giống video mẫu)."""
+    text = _strip_emoji(text)
     img = Image.new("RGBA", (video_w, video_h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    font_size = max(28, int(video_h * random.uniform(0.045, 0.06)))
+    # Cỡ chữ nhỏ gọn hơn (~3.8% chiều cao). Đổi qua .env TEXT_SCALE nếu cần.
+    scale = float(os.getenv("TEXT_SCALE", "0.038"))
+    font_size = max(24, int(video_h * scale))
     font = _load_font(font_size)
 
-    max_text_width = int(video_w * 0.8)
+    max_text_width = int(video_w * 0.82)
     lines = _wrap_text(draw, text, font, max_text_width)
 
-    line_height = draw.textbbox((0, 0), "Ag", font=font)[3] + 12
+    line_height = draw.textbbox((0, 0), "Ag", font=font)[3] + int(font_size * 0.35)
     total_height = line_height * len(lines)
 
-    # Vị trí dọc ngẫu nhiên: giữa / trên / dưới -> đổi bố cục mỗi lần.
-    vpos = random.choice(["center", "upper", "lower"])
-    if vpos == "center":
-        y0 = (video_h - total_height) // 2
-    elif vpos == "upper":
-        y0 = int(video_h * 0.15)
-    else:
-        y0 = int(video_h * 0.7)
+    # Vị trí: mặc định TRÊN (như mẫu). Đổi qua .env TEXT_POSITION=top|center|bottom
+    pos = (os.getenv("TEXT_POSITION", "top") or "top").strip().lower()
+    jitter = int(random.uniform(-0.02, 0.02) * video_h)  # nhích nhẹ để né trùng
+    if pos in ("center", "middle"):
+        y0 = (video_h - total_height) // 2 + jitter
+    elif pos in ("bottom", "lower"):
+        y0 = int(video_h * 0.72) + jitter
+    else:  # top
+        y0 = int(video_h * 0.08) + jitter
 
+    shadow = max(2, font_size // 22)          # độ lệch bóng đổ
+    stroke = max(1, font_size // 28)          # viền mảnh cho sắc nét
     for i, line in enumerate(lines):
         w = draw.textbbox((0, 0), line, font=font)[2]
         x = (video_w - w) // 2
         y = y0 + i * line_height
-        # Viền đen (stroke) để nổi trên nền sáng.
+        # 1) Bóng đổ mềm (đen mờ) lệch xuống-phải -> nổi trên mọi nền.
+        draw.text((x + shadow, y + shadow), line, font=font, fill=(0, 0, 0, 160))
+        # 2) Chữ trắng đặc + viền đen mảnh.
         draw.text((x, y), line, font=font, fill=(255, 255, 255, 255),
-                  stroke_width=max(2, font_size // 18), stroke_fill=(0, 0, 0, 220))
+                  stroke_width=stroke, stroke_fill=(0, 0, 0, 255))
 
     return np.array(img)
 
@@ -127,14 +157,14 @@ def process_video_anti_duplicate(
         speed_factor = random.uniform(0.98, 1.02)
         clip = clip.fx(vfx.speedx, speed_factor)
 
-        # 2. Độ sáng.
-        clip = clip.fx(vfx.colorx, random.uniform(0.97, 1.03))
+        # 2. GIỮ NGUYÊN MÀU GỐC (không chỉnh sáng/tương phản).
+        #    Bật lại nếu muốn: đặt KEEP_ORIGINAL_COLOR=false trong .env
+        if os.getenv("KEEP_ORIGINAL_COLOR", "true").strip().lower() not in ("1", "true", "yes", "y"):
+            clip = clip.fx(vfx.colorx, random.uniform(0.99, 1.01))
+            clip = clip.fx(vfx.lum_contrast, 0, random.uniform(-3, 3), 128)
 
-        # 3. Độ tương phản nhẹ.
-        clip = clip.fx(vfx.lum_contrast, 0, random.uniform(-8, 8), 128)
-
-        # 4. Zoom/crop rất nhẹ (1-3%) -> đổi visual fingerprint mà mắt khó thấy.
-        zoom = random.uniform(1.01, 1.03)
+        # 3. Zoom/crop rất nhẹ (0.5-1.5%) -> đổi visual fingerprint mà mắt khó thấy.
+        zoom = random.uniform(1.005, 1.015)
         zw, zh = clip.w, clip.h
         clip = clip.fx(vfx.resize, zoom).fx(
             vfx.crop, width=zw, height=zh, x_center=clip.w / 2, y_center=clip.h / 2

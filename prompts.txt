@@ -1,8 +1,11 @@
 # Mỗi dòng là 1 prompt. Dòng trống và dòng bắt đầu bằng '#' sẽ bị bỏ qua.
-# Tool sẽ xoay vòng ngẫu nhiên qua các prompt này.
-Viết 1 câu trích dẫn truyền cảm hứng ngắn gọn dưới 15 từ về phát triển bản thân.
-Viết 1 câu quote sâu sắc về sự kiên trì và không bỏ cuộc, dưới 15 từ.
-Viết 1 câu nói tạo động lực về kỷ luật bản thân, dưới 15 từ.
-Viết 1 câu trích dẫn về việc bước ra khỏi vùng an toàn, dưới 15 từ.
-Viết 1 câu quote truyền cảm hứng về ước mơ và mục tiêu, dưới 15 từ.
-Viết 1 câu nói về giá trị của thời gian và hành động ngay hôm nay, dưới 15 từ.
+# Chủ đề: HÀI HƯỚC (tiếng Anh) về nhu cầu cần dụng cụ cạo/chải lông cho chó mèo.
+# Tool sẽ xoay vòng ngẫu nhiên, mỗi lần AI viết 1 câu mới -> không trùng.
+Write ONE funny, punchy English hook (max 10 words) about pet hair being EVERYWHERE and needing a grooming/deshedding brush.
+Write ONE witty English one-liner (max 10 words) joking that your cat sheds a whole second cat every week.
+Write ONE humorous English caption (max 10 words) about a dog leaving fur on everything you own.
+Write ONE funny English hook (max 10 words) pretending pet fur is taking over the house and this brush is the hero.
+Write ONE playful English line (max 10 words) about finally winning the war against pet shedding with a grooming tool.
+Write ONE funny English caption (max 10 words) joking that black clothes and pets should never mix without this brush.
+Write ONE witty English hook (max 10 words) about vacuuming daily until you got the right pet grooming brush.
+Write ONE humorous English one-liner (max 10 words) about your pet shedding more than they weigh.

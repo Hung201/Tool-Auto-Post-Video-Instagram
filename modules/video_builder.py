@@ -19,6 +19,7 @@ import json
 import os
 import random
 
+from . import _compat  # noqa: F401  (vá Pillow>=10 cho moviepy trước khi resize)
 from moviepy.editor import AudioFileClip, VideoFileClip, concatenate_videoclips
 import moviepy.audio.fx.all as afx
 import moviepy.video.fx.all as vfx

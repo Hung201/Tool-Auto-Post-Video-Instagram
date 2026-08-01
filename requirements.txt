@@ -5,9 +5,9 @@ Pillow>=10.0.0
 python-dotenv>=1.0.0
 requests>=2.28.0
 
-# --- Sinh text bằng AI ---
-anthropic>=0.40.0          # mặc định (AI_PROVIDER=anthropic), dùng ANTHROPIC_API_KEY
-# google-genai>=0.3.0      # chỉ cần nếu AI_PROVIDER=gemini
+# --- Sinh text bằng AI (Claude chính + Gemini dự phòng) ---
+anthropic>=0.40.0          # ANTHROPIC_API_KEY (mặc định)
+google-genai>=0.3.0        # GEMINI_API_KEY (tự chuyển sang khi Claude lỗi)
 
 # --- Graph API chính thức: cần 1 media host public ---
 # Chọn Cloudinary (đơn giản, free tier). Bỏ nếu bạn tự host qua MEDIA_HOST=public_dir.
