@@ -1,0 +1,17 @@
+# --- Bắt buộc ---
+moviepy==1.0.3
+numpy>=1.24.0
+Pillow>=10.0.0
+python-dotenv>=1.0.0
+requests>=2.28.0
+
+# --- Sinh text bằng AI ---
+anthropic>=0.40.0          # mặc định (AI_PROVIDER=anthropic), dùng ANTHROPIC_API_KEY
+# google-genai>=0.3.0      # chỉ cần nếu AI_PROVIDER=gemini
+
+# --- Graph API chính thức: cần 1 media host public ---
+# Chọn Cloudinary (đơn giản, free tier). Bỏ nếu bạn tự host qua MEDIA_HOST=public_dir.
+cloudinary>=1.36.0
+
+# --- Chỉ cần nếu dùng PUBLISHER=instagrapi (private API, không chính thức) ---
+# instagrapi>=2.0.0

@@ -1,0 +1,2 @@
+# (Tùy chọn) Đặt file nhạc nền (.mp3/.wav/.m4a/.aac) vào đây.
+# Bật USE_RANDOM_MUSIC=true trong .env để tự chọn ngẫu nhiên -> né bản quyền audio.

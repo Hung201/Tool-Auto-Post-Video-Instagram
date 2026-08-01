@@ -1,0 +1,25 @@
+{
+  "_ghi_chu": "Copy thành config/accounts.json. Với PUBLISHER=graph dùng ig_user_id + access_token. Với PUBLISHER=instagrapi dùng username + password. Field thiếu lấy mặc định từ .env.",
+  "accounts": [
+    {
+      "name": "kenh_motivation",
+      "ig_user_id": "17841400000000001",
+      "access_token": "EAAG...token_cua_tai_khoan_1...",
+      "hashtags": "#reels #viral #motivation",
+      "prompt_file": "prompts.txt",
+      "use_random_music": false,
+      "min_hours": 1.0,
+      "max_hours": 2.0
+    },
+    {
+      "name": "kenh_quotes",
+      "ig_user_id": "17841400000000002",
+      "access_token": "EAAG...token_cua_tai_khoan_2...",
+      "hashtags": "#quotes #inspiration #phattrienbanthan",
+      "prompt": "Viết 1 câu quote sâu sắc về sự kiên trì, dưới 12 từ.",
+      "use_random_music": true,
+      "min_hours": 3.0,
+      "max_hours": 5.0
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Mỗi dòng là 1 prompt. Dòng trống và dòng bắt đầu bằng '#' sẽ bị bỏ qua.
+# Tool sẽ xoay vòng ngẫu nhiên qua các prompt này.
+Viết 1 câu trích dẫn truyền cảm hứng ngắn gọn dưới 15 từ về phát triển bản thân.
+Viết 1 câu quote sâu sắc về sự kiên trì và không bỏ cuộc, dưới 15 từ.
+Viết 1 câu nói tạo động lực về kỷ luật bản thân, dưới 15 từ.
+Viết 1 câu trích dẫn về việc bước ra khỏi vùng an toàn, dưới 15 từ.
+Viết 1 câu quote truyền cảm hứng về ước mơ và mục tiêu, dưới 15 từ.
+Viết 1 câu nói về giá trị của thời gian và hành động ngay hôm nay, dưới 15 từ.
