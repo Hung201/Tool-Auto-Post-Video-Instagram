@@ -19,8 +19,11 @@ import time
 
 import requests
 
-GRAPH_VERSION = "v21.0"
-BASE = f"https://graph.facebook.com/{GRAPH_VERSION}"
+# 2 API chính thức, cùng luồng đăng nhưng khác domain:
+#   - Facebook Graph API : cần Instagram Business nối với Facebook Page.
+#   - Instagram Login API: KHÔNG cần Facebook Page (chỉ cần IG Professional).
+FB_BASE = "https://graph.facebook.com/v21.0"
+IG_BASE = "https://graph.instagram.com/v21.0"
 
 
 def _raise_graph_error(resp: requests.Response, step: str):
@@ -33,8 +36,8 @@ def _raise_graph_error(resp: requests.Response, step: str):
         raise RuntimeError(f"[Graph API - {step}] HTTP {resp.status_code}: {resp.text}")
 
 
-def _create_container(ig_user_id, access_token, video_url, caption, cover_url=None,
-                      share_to_feed=True):
+def _create_container(base, ig_user_id, access_token, video_url, caption,
+                      cover_url=None, share_to_feed=True, location_id=None):
     params = {
         "media_type": "REELS",
         "video_url": video_url,
@@ -44,18 +47,20 @@ def _create_container(ig_user_id, access_token, video_url, caption, cover_url=No
     }
     if cover_url:
         params["cover_url"] = cover_url
-    resp = requests.post(f"{BASE}/{ig_user_id}/media", params=params, timeout=60)
+    if location_id:
+        params["location_id"] = location_id  # gắn địa điểm (mã Facebook Places)
+    resp = requests.post(f"{base}/{ig_user_id}/media", params=params, timeout=60)
     if not resp.ok:
         _raise_graph_error(resp, "tạo container")
     return resp.json()["id"]
 
 
-def _wait_until_ready(container_id, access_token, timeout_sec=600, interval=8):
+def _wait_until_ready(base, container_id, access_token, timeout_sec=600, interval=8):
     """Poll status_code cho tới khi FINISHED. Reels cần vài chục giây để Instagram xử lý."""
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
         resp = requests.get(
-            f"{BASE}/{container_id}",
+            f"{base}/{container_id}",
             params={"fields": "status_code,status", "access_token": access_token},
             timeout=30,
         )
@@ -67,15 +72,14 @@ def _wait_until_ready(container_id, access_token, timeout_sec=600, interval=8):
             return
         if code == "ERROR":
             raise RuntimeError(f"[Graph API] Instagram xử lý video lỗi: {data.get('status')}")
-        # IN_PROGRESS / PUBLISHED / EXPIRED...
         print(f"   ⏱️  Instagram đang xử lý video (status={code})...")
         time.sleep(interval)
     raise TimeoutError("Instagram xử lý video quá lâu (timeout).")
 
 
-def _publish(ig_user_id, access_token, creation_id):
+def _publish(base, ig_user_id, access_token, creation_id):
     resp = requests.post(
-        f"{BASE}/{ig_user_id}/media_publish",
+        f"{base}/{ig_user_id}/media_publish",
         params={"creation_id": creation_id, "access_token": access_token},
         timeout=60,
     )
@@ -85,30 +89,21 @@ def _publish(ig_user_id, access_token, creation_id):
 
 
 def publish_reel(ig_user_id: str, access_token: str, video_url: str,
-                 caption: str, cover_url: str = None) -> str:
-    """Đăng 1 Reel qua Graph API. Trả về media id đã đăng."""
+                 caption: str, cover_url: str = None, base_url: str = FB_BASE,
+                 location_id: str = None) -> str:
+    """Đăng 1 Reel. base_url = FB_BASE (qua Page) hoặc IG_BASE (không cần Page)."""
     if not ig_user_id or not access_token:
         raise RuntimeError("Thiếu ig_user_id hoặc access_token cho tài khoản.")
 
     print(f"🧱 [{ig_user_id}] Tạo media container...")
-    creation_id = _create_container(ig_user_id, access_token, video_url, caption, cover_url)
+    creation_id = _create_container(base_url, ig_user_id, access_token,
+                                    video_url, caption, cover_url,
+                                    location_id=location_id)
 
     print(f"⏳ [{ig_user_id}] Chờ Instagram xử lý video...")
-    _wait_until_ready(creation_id, access_token)
+    _wait_until_ready(base_url, creation_id, access_token)
 
     print(f"🚀 [{ig_user_id}] Publishing...")
-    media_id = _publish(ig_user_id, access_token, creation_id)
+    media_id = _publish(base_url, ig_user_id, access_token, creation_id)
     print(f"✅ [{ig_user_id}] Đăng thành công! Media ID: {media_id}")
     return media_id
-
-
-def verify_token(ig_user_id: str, access_token: str) -> dict:
-    """Kiểm tra nhanh token & id còn hợp lệ. Trả về thông tin account."""
-    resp = requests.get(
-        f"{BASE}/{ig_user_id}",
-        params={"fields": "username,followers_count", "access_token": access_token},
-        timeout=30,
-    )
-    if not resp.ok:
-        _raise_graph_error(resp, "verify token")
-    return resp.json()

@@ -39,6 +39,11 @@ SECOND_DIR = os.getenv("SECOND_VIDEO_DIR", r"E:\Hung\drop-shipping\second-video"
 BUILD_MUSIC_DIR = os.getenv("BUILD_MUSIC_DIR", r"E:\Hung\drop-shipping\music")
 SECOND_COUNT = int(os.getenv("SECOND_COUNT", "3"))
 
+# Canh giờ vàng Mỹ: chỉ đăng trong khung cao điểm (múi giờ Mỹ).
+USE_PEAK_HOURS = os.getenv("USE_PEAK_HOURS", "true").strip().lower() in ("1", "true", "yes", "y")
+POSTING_TIMEZONE = os.getenv("POSTING_TIMEZONE", "America/Chicago")
+PEAK_WINDOWS = os.getenv("PEAK_WINDOWS", "11-14,19-22")
+
 # Mỗi video tạo ra được lưu lại đây để tiện quan sát (không tự xoá).
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", r"E:\Hung\drop-shipping\output")
 
@@ -54,12 +59,18 @@ def _output_path(username: str) -> str:
 
 
 def _publish(account: dict, video_path: str, caption: str) -> str:
-    """Đăng video bằng publisher đã cấu hình (graph = chính thức, instagrapi = private)."""
-    if PUBLISHER == "graph":
-        from modules.graph_publisher import publish_reel
+    """Đăng video theo publisher:
+       graph     = Facebook Graph API (cần Instagram Business nối Facebook Page)
+       instagram = Instagram Login API (CHÍNH THỐNG, KHÔNG cần Facebook Page)
+       instagrapi= private API (chỉ user/pass)
+    """
+    if PUBLISHER in ("graph", "instagram"):
+        from modules.graph_publisher import publish_reel, FB_BASE, IG_BASE
         from modules.media_host import upload_public
 
-        # Graph API cần URL public: upload -> đăng -> dọn file trên hosting.
+        base = IG_BASE if PUBLISHER == "instagram" else FB_BASE
+        location_id = (os.getenv("IG_LOCATION_ID") or "").strip() or None
+        # Cả 2 API đều cần URL public: upload -> đăng -> dọn file trên hosting.
         public_url, cleanup = upload_public(video_path)
         try:
             return publish_reel(
@@ -67,6 +78,8 @@ def _publish(account: dict, video_path: str, caption: str) -> str:
                 access_token=account["access_token"],
                 video_url=public_url,
                 caption=caption,
+                base_url=base,
+                location_id=location_id,
             )
         finally:
             cleanup()
@@ -184,6 +197,9 @@ def main() -> None:
             if not first or delay_first:
                 random_sleep(account["min_hours"], account["max_hours"])
             first = False
+            if USE_PEAK_HOURS:
+                from modules.scheduler import wait_for_peak_window
+                wait_for_peak_window(POSTING_TIMEZONE, PEAK_WINDOWS)
             run_cycle(account, video_queue, prompt_queues)
         except KeyboardInterrupt:
             print("\n⏹️  Dừng bởi người dùng.")

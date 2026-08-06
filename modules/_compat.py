@@ -10,3 +10,13 @@ from PIL import Image
 if not hasattr(Image, "ANTIALIAS"):
     # Ánh xạ về LANCZOS (chất lượng cao) — thay thế cho ANTIALIAS cũ.
     Image.ANTIALIAS = Image.Resampling.LANCZOS
+
+# instagrapi (moviepy 2.x) gọi moviepy.VideoFileClip ở cấp cao, nhưng moviepy 1.0.3
+# chỉ có ở moviepy.editor -> alias để instagrapi tạo thumbnail được.
+try:
+    import moviepy
+    if not hasattr(moviepy, "VideoFileClip"):
+        from moviepy.editor import VideoFileClip as _VFC
+        moviepy.VideoFileClip = _VFC
+except Exception:
+    pass

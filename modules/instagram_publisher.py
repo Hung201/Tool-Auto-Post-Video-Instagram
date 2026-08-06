@@ -6,37 +6,73 @@ Hỗ trợ NHIỀU tài khoản: mỗi account có file session riêng (sessions
 
 import os
 
+from . import _compat  # noqa: F401  (alias moviepy.VideoFileClip cho instagrapi)
 from instagrapi import Client
-from instagrapi.exceptions import LoginRequired
+
+
+def _new_client() -> Client:
+    cl = Client()
+    cl.delay_range = [1, 3]  # Delay ngẫu nhiên giữa các request -> giống người thật.
+    return cl
+
+
+def _login(cl: Client, username: str, password: str) -> None:
+    """Đăng nhập; nếu có 2FA thì lấy mã từ biến môi trường IG_2FA_CODE."""
+    code = os.getenv("IG_2FA_CODE", "").strip()
+    if code:
+        cl.login(username, password, verification_code=code)
+    else:
+        cl.login(username, password)
 
 
 def _get_logged_in_client(username: str, password: str, session_file: str) -> Client:
-    if not username or not password:
-        raise RuntimeError("Thiếu username/password của tài khoản.")
-
     os.makedirs(os.path.dirname(session_file) or ".", exist_ok=True)
+    sessionid = os.getenv("IG_SESSIONID", "").strip()
+    cl = _new_client()
 
-    cl = Client()
-    cl.delay_range = [1, 3]  # Delay ngẫu nhiên giữa các request -> giống người thật.
-
-    # 1. Thử dùng session đã lưu.
+    # 1. Ưu tiên session đã lưu (không cần đăng nhập lại -> không bị challenge).
     if os.path.exists(session_file):
         try:
             cl.load_settings(session_file)
-            cl.login(username, password)  # Dùng lại session cookie nếu còn hạn.
-            cl.get_timeline_feed()        # Kiểm tra session còn sống.
-            print(f"🔑 [{username}] Đăng nhập bằng session đã lưu.")
+            cl.get_timeline_feed()  # Kiểm tra session còn sống.
+            print(f"🔑 [{username}] Dùng session đã lưu.")
             return cl
         except Exception as e:
-            print(f"⚠️  [{username}] Session cũ không dùng được ({e}). Đăng nhập lại...")
-            old = cl.get_settings()
-            cl = Client()
-            cl.delay_range = [1, 3]
-            cl.set_settings({})
-            cl.set_uuids(old.get("uuids", {}))  # Giữ device UUID -> không bị coi là thiết bị mới.
+            print(f"⚠️  [{username}] Session cũ hết hạn ({e}). Tạo lại...")
+            cl = _new_client()
 
-    # 2. Đăng nhập mới và lưu session.
-    cl.login(username, password)
+    # 2. Đăng nhập bằng SESSIONID lấy từ trình duyệt (BỎ QUA challenge).
+    if sessionid:
+        try:
+            cl.login_by_sessionid(sessionid)
+            cl.dump_settings(session_file)
+            print(f"🔑 [{username}] Đăng nhập bằng sessionid thành công, đã lưu session.")
+            return cl
+        except Exception as e:
+            raise RuntimeError(
+                f"IG_SESSIONID không dùng được ({e}). Lấy lại sessionid mới từ trình duyệt "
+                "(đang đăng nhập Instagram) rồi dán vào .env."
+            )
+
+    # 3. Đăng nhập bằng username + password (dễ bị challenge với máy/IP lạ).
+    if not username or not password:
+        raise RuntimeError("Thiếu IG_USERNAME/IG_PASSWORD (hoặc IG_SESSIONID) trong .env.")
+    try:
+        _login(cl, username, password)
+    except Exception as e:
+        name = type(e).__name__
+        low = str(e).lower()
+        if "TwoFactor" in name or "2fa" in low:
+            raise RuntimeError(
+                "Tài khoản bật 2FA. Chạy lại với: IG_2FA_CODE=123456 python test_post.py"
+            )
+        if "Challenge" in name or "challenge" in low or "checkpoint" in low:
+            raise RuntimeError(
+                "Instagram chặn đăng nhập mật khẩu (challenge/checkpoint). "
+                "CÁCH KHẮC PHỤC: lấy IG_SESSIONID từ trình duyệt đang đăng nhập Instagram "
+                "và dán vào .env (xem hướng dẫn). Đây là cách ổn định nhất."
+            )
+        raise
     cl.dump_settings(session_file)
     print(f"🔑 [{username}] Đăng nhập mới thành công, đã lưu {session_file}.")
     return cl

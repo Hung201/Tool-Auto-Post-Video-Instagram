@@ -4,6 +4,7 @@ numpy>=1.24.0
 Pillow>=10.0.0
 python-dotenv>=1.0.0
 requests>=2.28.0
+tzdata>=2024.1              # database múi giờ IANA cho Windows (canh giờ vàng Mỹ)
 
 # --- Sinh text bằng AI (Claude chính + Gemini dự phòng) ---
 anthropic>=0.40.0          # ANTHROPIC_API_KEY (mặc định)
@@ -13,5 +14,5 @@ google-genai>=0.3.0        # GEMINI_API_KEY (tự chuyển sang khi Claude lỗi
 # Chọn Cloudinary (đơn giản, free tier). Bỏ nếu bạn tự host qua MEDIA_HOST=public_dir.
 cloudinary>=1.36.0
 
-# --- Chỉ cần nếu dùng PUBLISHER=instagrapi (private API, không chính thức) ---
-# instagrapi>=2.0.0
+# --- PUBLISHER=instagrapi (chỉ cần user + mật khẩu, không cần token/Cloudinary) ---
+instagrapi>=2.0.0

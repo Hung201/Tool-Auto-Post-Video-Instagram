@@ -35,9 +35,9 @@ def _normalize(acc: dict) -> dict:
     access_token = str(acc.get("access_token", "")).strip()
     password = str(acc.get("password", "")).strip()
 
-    if publisher == "graph":
+    if publisher in ("graph", "instagram"):
         if not ig_user_id or not access_token:
-            raise ValueError(f"Account (Graph API) thiếu ig_user_id/access_token: {username or acc!r}")
+            raise ValueError(f"Account (API chính thống) thiếu ig_user_id/access_token: {username or acc!r}")
     else:  # instagrapi
         if not username or not password:
             raise ValueError(f"Account (instagrapi) thiếu username/password: {acc!r}")
@@ -77,7 +77,7 @@ def load_accounts() -> list:
 
     # Fallback: 1 account từ .env
     publisher = _default("PUBLISHER", "graph").lower()
-    if publisher == "graph":
+    if publisher in ("graph", "instagram"):
         ig_user_id = os.getenv("IG_USER_ID")
         access_token = os.getenv("IG_ACCESS_TOKEN")
         if not ig_user_id or not access_token:
