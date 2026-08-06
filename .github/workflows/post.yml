@@ -1,0 +1,77 @@
+name: Auto Post Instagram
+
+# Chạy theo lịch (giờ UTC) rơi vào giờ vàng Mỹ, + cho phép bấm chạy tay để test.
+on:
+  schedule:
+    - cron: '0 17 * * *'   # ~12h trưa ET / 9h sáng PT
+    - cron: '0 0 * * *'    # ~19h tối ET / 16h chiều PT
+    - cron: '0 2 * * *'    # ~21h tối ET / 18h tối PT
+  workflow_dispatch: {}     # nút "Run workflow" để chạy thử ngay
+
+permissions:
+  contents: write           # để commit lại used_combos.json / history.json
+
+concurrency:
+  group: auto-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    env:
+      # --- Cấu hình (không bí mật) ---
+      PUBLISHER: instagram
+      VIDEO_SOURCE: composite
+      FIRST_VIDEO_DIR: media/first-video
+      SECOND_VIDEO_DIR: media/second-video
+      BUILD_MUSIC_DIR: media/music
+      OUTPUT_DIR: output
+      SECOND_COUNT: "3"
+      SECOND_ORDER_MATTERS: "true"
+      FADE_DURATION: "0.5"
+      TEXT_POSITION: top
+      TEXT_SCALE: "0.038"
+      KEEP_ORIGINAL_COLOR: "true"
+      RUN_MODE: once            # đăng 1 bài rồi thoát (cron lo việc lặp)
+      USE_PEAK_HOURS: "false"   # cron đã canh giờ, không cần tool tự chờ
+      AI_PROVIDER: anthropic
+      ANTHROPIC_MODEL: claude-haiku-4-5
+      MEDIA_HOST: cloudinary
+      PYTHONIOENCODING: utf-8
+      PROMPT_TEXT: "Write ONE funny English hook (max 10 words) about needing a pet grooming brush for cats and dogs."
+      CAPTION_HASHTAGS: "#petgrooming #petbrush #deshedding #petgroomingtools #sheddingseason #furremover #petcare #pethacks #petproducts #petmusthaves #petfinds #dogsofinstagram #catsofinstagram #petsofinstagram #dogsofinsta #catsofinsta #instapet #petstagram #doglover #catlover #petlovers #dogmom #catmom #furbaby #tiktokmademebuyit #amazonfinds #amazonmusthaves #reels #fyp #viral"
+      # --- Bí mật (lấy từ GitHub Secrets) ---
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cài ffmpeg + font
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+
+      - name: Cài thư viện Python
+        run: pip install -r requirements.txt
+
+      - name: Đăng 1 video
+        run: python main.py
+
+      - name: Lưu lại trạng thái chống trùng
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add used_combos.json history.json 2>/dev/null || true
+          git commit -m "chore: cập nhật trạng thái đăng bài [skip ci]" || echo "Không có gì để commit"
+          git push || echo "Không có gì để push"

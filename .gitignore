@@ -1,18 +1,26 @@
+# === Bí mật & cấu hình cá nhân (KHÔNG đẩy lên GitHub) ===
 .env
 session.json
 sessions/
 config/accounts.json
-history.json
-used_combos.json
+
+# === File tạm / kết quả ===
 temp_processed_video.mp4
 temp_composed_video.mp4
+temp_test_composed.mp4
 test_composed.mp4
 test_output.mp4
+output/
+logs/
 __pycache__/
 *.pyc
 .venv/
 venv/
+
+# === Thư mục local-only (chế độ single-account) ===
 inputs/*
-music/*
 !inputs/.gitkeep
-!music/.gitkeep
+
+# LƯU Ý cho GitHub Actions:
+# - used_combos.json & history.json KHÔNG bị ignore -> Actions commit lại để nhớ trạng thái chống trùng.
+# - media/ được đẩy lên repo (chứa video nguồn cho Actions dùng).
