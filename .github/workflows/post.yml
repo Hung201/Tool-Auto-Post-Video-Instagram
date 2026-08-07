@@ -34,13 +34,15 @@ jobs:
       KEEP_ORIGINAL_COLOR: "true"
       RUN_MODE: once            # đăng 1 bài rồi thoát (cron lo việc lặp)
       USE_PEAK_HOURS: "false"   # cron đã canh giờ, không cần tool tự chờ
-      AI_PROVIDER: anthropic
+      AI_PROVIDER: lovable
+      LOVABLE_MODEL: google/gemini-2.5-flash
       ANTHROPIC_MODEL: claude-haiku-4-5
       MEDIA_HOST: cloudinary
       PYTHONIOENCODING: utf-8
       PROMPT_TEXT: "Write ONE funny English hook (max 10 words) about needing a pet grooming brush for cats and dogs."
       CAPTION_HASHTAGS: "#petgrooming #petbrush #deshedding #petgroomingtools #sheddingseason #furremover #petcare #pethacks #petproducts #petmusthaves #petfinds #dogsofinstagram #catsofinstagram #petsofinstagram #dogsofinsta #catsofinsta #instapet #petstagram #doglover #catlover #petlovers #dogmom #catmom #furbaby #tiktokmademebuyit #amazonfinds #amazonmusthaves #reels #fyp #viral"
       # --- Bí mật (lấy từ GitHub Secrets) ---
+      LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       IG_USER_ID: ${{ secrets.IG_USER_ID }}

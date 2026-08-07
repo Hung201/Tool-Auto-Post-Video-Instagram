@@ -1,17 +1,24 @@
 """Module sinh nội dung text bằng AI, có TỰ CHUYỂN DỰ PHÒNG (fallback).
 
-Mặc định dùng Claude (Anthropic). Nếu Claude lỗi/hết hạn mức, tự chuyển sang
-Gemini (nếu có GEMINI_API_KEY) và ngược lại.
+Thứ tự ưu tiên lấy từ AI_PROVIDER (mặc định lovable). Nếu provider chính lỗi/hết
+hạn mức, tự chuyển sang provider còn lại.
 
-Thứ tự ưu tiên lấy từ AI_PROVIDER (mặc định anthropic).
+Provider hỗ trợ:
+  - lovable  : Lovable AI Gateway (OpenAI-compatible), dùng LOVABLE_API_KEY
+  - anthropic: Claude, dùng ANTHROPIC_API_KEY
+  - gemini   : Google Gemini, dùng GEMINI_API_KEY
 """
 
 import os
+
+import requests
 
 _INSTRUCTION = (
     "Chỉ trả về đúng nội dung câu nói, không kèm dấu ngoặc kép, "
     "không đánh số, không lời dẫn hay giải thích."
 )
+
+_ALL_PROVIDERS = ["lovable", "anthropic", "gemini"]
 
 
 def _clean(text: str) -> str:
@@ -22,17 +29,36 @@ def _clean(text: str) -> str:
 
 
 def has_key(provider: str) -> bool:
-    if provider == "gemini":
-        return bool(os.getenv("GEMINI_API_KEY"))
-    return bool(os.getenv("ANTHROPIC_API_KEY"))
+    return {
+        "lovable": bool(os.getenv("LOVABLE_API_KEY")),
+        "gemini": bool(os.getenv("GEMINI_API_KEY")),
+        "anthropic": bool(os.getenv("ANTHROPIC_API_KEY")),
+    }.get(provider, False)
+
+
+def _generate_lovable(prompt: str) -> str:
+    key = os.getenv("LOVABLE_API_KEY")
+    if not key:
+        raise RuntimeError("Thiếu LOVABLE_API_KEY")
+    model = os.getenv("LOVABLE_MODEL", "google/gemini-2.5-flash")
+    resp = requests.post(
+        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={"model": model,
+              "messages": [{"role": "user", "content": f"{prompt}\n\n{_INSTRUCTION}"}]},
+        timeout=60,
+    )
+    if not resp.ok:
+        raise RuntimeError(f"Lovable HTTP {resp.status_code}: {resp.text[:200]}")
+    text = resp.json()["choices"][0]["message"]["content"]
+    return _clean(text)
 
 
 def _generate_anthropic(prompt: str) -> str:
-    import anthropic  # import trong hàm để không bắt buộc cài nếu chỉ dùng Gemini
+    import anthropic
 
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("Thiếu ANTHROPIC_API_KEY")
-
     client = anthropic.Anthropic()
     model = os.getenv("ANTHROPIC_MODEL", "claude-opus-5")
     base = dict(
@@ -40,16 +66,13 @@ def _generate_anthropic(prompt: str) -> str:
         max_tokens=1024,
         messages=[{"role": "user", "content": f"{prompt}\n\n{_INSTRUCTION}"}],
     )
-
     try:
-        # 'effort' giúp tiết kiệm token nhưng chỉ có ở model mới.
         resp = client.messages.create(**base, output_config={"effort": "low"})
     except anthropic.BadRequestError as e:
         if "effort" in str(e).lower():
-            resp = client.messages.create(**base)  # model cũ -> bỏ effort
+            resp = client.messages.create(**base)
         else:
             raise
-
     if resp.stop_reason == "refusal":
         raise RuntimeError("Yêu cầu bị Claude từ chối (refusal).")
     text = next((b.text for b in resp.content if b.type == "text"), "")
@@ -61,7 +84,6 @@ def _generate_gemini(prompt: str) -> str:
 
     if not os.getenv("GEMINI_API_KEY"):
         raise RuntimeError("Thiếu GEMINI_API_KEY")
-
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     response = client.models.generate_content(
@@ -70,7 +92,11 @@ def _generate_gemini(prompt: str) -> str:
     return _clean(response.text)
 
 
-_GENERATORS = {"anthropic": _generate_anthropic, "gemini": _generate_gemini}
+_GENERATORS = {
+    "lovable": _generate_lovable,
+    "anthropic": _generate_anthropic,
+    "gemini": _generate_gemini,
+}
 
 
 def generate_with_provider(provider: str, prompt: str) -> str:
@@ -82,12 +108,9 @@ def generate_with_provider(provider: str, prompt: str) -> str:
 
 
 def generate_ai_text(prompt: str) -> str:
-    """Sinh text; nếu provider chính lỗi -> tự chuyển sang provider còn lại.
-
-    Ném exception chỉ khi TẤT CẢ provider có key đều lỗi.
-    """
-    primary = (os.getenv("AI_PROVIDER", "anthropic") or "anthropic").strip().lower()
-    order = [primary, "gemini" if primary != "gemini" else "anthropic"]
+    """Sinh text; nếu provider chính lỗi -> tự chuyển sang provider còn lại."""
+    primary = (os.getenv("AI_PROVIDER", "lovable") or "lovable").strip().lower()
+    order = [primary] + [p for p in _ALL_PROVIDERS if p != primary]
 
     last_error = None
     for provider in order:
